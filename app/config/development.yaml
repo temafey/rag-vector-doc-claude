@@ -1,0 +1,16 @@
+# Development environment configuration
+app:
+  debug: true
+
+qdrant:
+  host: "qdrant"  # For Docker Compose
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+  workers: 1
+
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

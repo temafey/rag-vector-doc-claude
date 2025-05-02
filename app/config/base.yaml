@@ -1,0 +1,38 @@
+# Base configuration for RAG system
+app:
+  name: "RAG System"
+  version: "0.1.0"
+  description: "Retrieval Augmented Generation system with Qdrant and LangChain"
+
+qdrant:
+  host: "localhost"
+  port: 6333
+
+langchain:
+  embedding_model: "text-embedding-ada-002"
+  multilingual_embedding_model: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+  llm_model: "gpt-3.5-turbo"
+  temperature: 0.0
+
+storage:
+  document_path: "./storage/documents"
+  
+indexing:
+  chunk_size: 1000
+  chunk_overlap: 200
+  batch_size: 10
+
+languages:
+  supported:
+    - "en"
+    - "ru"
+  default: "en"
+  auto_detect: true
+  detect_chunk_language: false
+
+translation:
+  enabled: true
+  preload_models: false
+  enabled_pairs:
+    - ["ru", "en"]
+    - ["en", "ru"]

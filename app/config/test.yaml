@@ -1,0 +1,19 @@
+# Test environment configuration
+app:
+  debug: true
+
+qdrant:
+  host: "localhost"
+  port: 6334  # Different port for tests
+
+storage:
+  document_path: "./tests/storage/documents"
+
+api:
+  host: "127.0.0.1"
+  port: 8001
+  reload: false
+  workers: 1
+
+logging:
+  level: "DEBUG"
