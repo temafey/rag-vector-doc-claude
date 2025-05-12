@@ -36,3 +36,47 @@ translation:
   enabled_pairs:
     - ["ru", "en"]
     - ["en", "ru"]
+
+# Agent configuration
+agent:
+  # Default agent settings
+  default_agent_name: "RAG Assistant"
+  default_agent_description: "Agent for RAG with self-assessment"
+  
+  # Action configuration
+  actions:
+    enabled:
+      - "search"
+      - "generate"
+      - "evaluate"
+      - "improve"
+  
+  # Planning configuration
+  planning:
+    enabled: true
+    max_steps: 10
+    timeout: 120  # seconds
+
+# Self-assessment configuration
+evaluation:
+  # Criteria thresholds (0.0 to 1.0)
+  thresholds:
+    relevance: 0.7
+    factual_accuracy: 0.8
+    completeness: 0.7
+    logical_coherence: 0.7
+    ethical_compliance: 0.9
+  
+  # Criteria weights for overall score
+  weights:
+    relevance: 0.25
+    factual_accuracy: 0.3
+    completeness: 0.2
+    logical_coherence: 0.15
+    ethical_compliance: 0.1
+  
+  # Overall threshold for improvement
+  overall_threshold: 0.75
+  
+  # Maximum improvement attempts
+  max_improvement_iterations: 2

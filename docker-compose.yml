@@ -10,15 +10,25 @@ services:
     volumes:
       - ./app:/app/app
       - ./storage:/app/storage
+      - ./.venv/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages
+      - ./tests:/app/tests
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - STORAGE_PATH=/app/storage
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - APP_ENV=development
+      - PYTHONPATH=/app
     depends_on:
       - qdrant
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -27,6 +37,13 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   cli:
     build:
@@ -36,6 +53,8 @@ services:
       - ./app:/app/app
       - ./storage:/app/storage
       - ./data:/app/data
+      - ./.venv/lib/python3.11/site-packages:/usr/local/lib/python3.11/site-packages
+      - ./tests:/app/tests
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
@@ -43,6 +62,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - API_BASE_URL=http://api:8000
       - APP_ENV=development
+      - PYTHONPATH=/app
     depends_on:
       - qdrant
       - api

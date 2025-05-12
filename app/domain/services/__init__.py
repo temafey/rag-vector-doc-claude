@@ -7,12 +7,25 @@ from app.domain.services.multilingual_embedding_generator import MultilingualEmb
 from app.domain.services.language_detector import LanguageDetector
 from app.domain.services.translation_service import TranslationService
 from app.domain.services.response_generator import ResponseGenerator
+from app.domain.services.agent import (
+    AgentService,
+    ActionRegistry,
+    PlanningService,
+    EvaluationService
+)
 
 __all__ = [
+    # Core services
     'TextSplitter',
     'EmbeddingGenerator',
     'MultilingualEmbeddingGenerator',
     'LanguageDetector',
     'TranslationService',
-    'ResponseGenerator'
+    'ResponseGenerator',
+    
+    # Agent services
+    'AgentService',
+    'ActionRegistry',
+    'PlanningService',
+    'EvaluationService'
 ]
