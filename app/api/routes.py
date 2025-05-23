@@ -107,6 +107,7 @@ class TaskResponse(BaseModel):
     created_at: str
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    progress: int
 
 # Error handler for consistent error responses
 def handle_exceptions(func):
@@ -139,27 +140,43 @@ async def process_document_upload(
     metadata_dict: Dict[str, Any],
     language: Optional[str]
 ):
-    """Process document upload in background."""
+    """Process document upload in background with progress."""
     try:
-        # Update task status
+        from app.infrastructure.parsers.parser_factory import ParserFactory
+        parser_factory = ParserFactory()
+        parser = parser_factory.get_parser(file_path)
+        # Count total subunits (pages/rows/lines)
+        total_units = 1
+        try:
+            if hasattr(parser, 'count_units'):
+                total_units = parser.count_units(file_path)
+            else:
+                # Fallback: try to parse and count
+                docs = parser.parse(file_path)
+                total_units = len(docs)
+        except Exception:
+            pass
         tasks[task_id] = {
             "status": TaskStatus.PROCESSING,
             "created_at": datetime.now().isoformat(),
             "progress": 0
         }
-        
-        # Process file
+        # Progress callback
+        def progress_callback(current, total):
+            percent = int(100 * current / max(total, 1))
+            tasks[task_id]["progress"] = percent
+        # Process file with progress
         command = AddFilesCommand(
             files=[file_path],
             collection=collection,
             metadata={**metadata_dict, "original_filename": filename},
             language=language
         )
-        
-        # Execute command
+        # Patch: pass progress_callback to handler via global
+        import builtins
+        builtins._rag_progress_callback = progress_callback
         result = command_bus.dispatch(command)
-        
-        # Update task status
+        builtins._rag_progress_callback = None
         tasks[task_id] = {
             "status": TaskStatus.COMPLETED,
             "created_at": datetime.now().isoformat(),
@@ -168,17 +185,17 @@ async def process_document_upload(
                 "document_count": result.total_documents,
                 "chunk_count": result.total_chunks,
                 "collection": collection
-            }
+            },
+            "progress": 100
         }
     except Exception as e:
-        # Update task status with error
         tasks[task_id] = {
             "status": TaskStatus.FAILED,
             "created_at": datetime.now().isoformat(),
-            "error": str(e)
+            "error": str(e),
+            "progress": 0
         }
     finally:
-        # Clean up temporary file
         try:
             if os.path.exists(file_path):
                 os.unlink(file_path)
@@ -462,25 +479,18 @@ async def upload_document_async(
 @handle_exceptions
 async def get_task_status(task_id: str):
     """
-    Get status of background task.
-    
-    Args:
-        task_id: Task ID
-        
-    Returns:
-        Task status and result
+    Get status of background task, including progress percent.
     """
     if task_id not in tasks:
         raise HTTPException(status_code=404, detail="Task not found")
-    
     task = tasks[task_id]
-    
     return TaskResponse(
         task_id=task_id,
         status=TaskStatus(task["status"]),
         created_at=task["created_at"],
         result=task.get("result"),
-        error=task.get("error")
+        error=task.get("error"),
+        progress=task.get("progress", 0)
     )
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)

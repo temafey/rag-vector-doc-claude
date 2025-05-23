@@ -12,15 +12,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Setup Python path
+# Install Python dependencies
+COPY requirements.txt .
+COPY requirements-dev.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+# Copy app code and supporting files
+COPY app/ ./app/
+COPY cli.py .
+COPY storage/ ./storage/
+COPY tests/ ./tests/
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PYTHONPATH="${PYTHONPATH}:/app"
+    PYTHONPATH="/app"
 
-# Note: We do NOT install requirements here anymore
-# They are installed in the host environment and mounted from there
-
-# Command to run on container start
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

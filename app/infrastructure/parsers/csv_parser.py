@@ -77,3 +77,10 @@ class CsvParser(DocumentParser):
             raise ValueError(f"Error parsing CSV file {file_path}: {str(e)}")
         
         return documents
+
+    def count_units(self, file_path: str) -> int:
+        """Return number of rows in the CSV (excluding header)."""
+        with open(file_path, 'r', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            n = sum(1 for _ in reader) - 1  # Exclude header
+        return max(n, 0)

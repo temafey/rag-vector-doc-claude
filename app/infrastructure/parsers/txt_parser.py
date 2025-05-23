@@ -49,3 +49,7 @@ class TxtParser(DocumentParser):
                 }]
         except Exception as e:
             raise ValueError(f"Error parsing text file {file_path}: {str(e)}")
+
+    def count_units(self, file_path: str) -> int:
+        """Return 1 (whole file as one document)."""
+        return 1

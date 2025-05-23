@@ -27,3 +27,12 @@ ipdb>=0.13.13
 # Type Checking
 types-requests>=2.31.0.2
 types-PyYAML>=6.0.12.12
+
+# For auto_update_taskmaster_status.py
+rapidfuzz>=3.0.0
+sentence-transformers>=2.2.2
+torch>=2.0.1
+huggingface_hub[hf_xet]>=0.21.4
+
+# Added tabulate
+tabulate

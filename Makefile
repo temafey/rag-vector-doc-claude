@@ -25,7 +25,10 @@ cli:
 
 # Add files to index
 add-files:
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py add $(FILES) --collection $(COLLECTION)
+	@if [ -z "$(FILES)" ]; then \
+	  FILES="data/*"; \
+	fi; \
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py add $$FILES --collection $(COLLECTION)
 
 # Execute query
 query:
@@ -59,6 +62,10 @@ format:
 venv:
 	./scripts/setup_venv.sh
 
+# Run auto-update Taskmaster status script
+update-tasks:
+	$(DOCKER_COMPOSE) run --rm --entrypoint "" cli python scripts/auto_update_taskmaster_status.py
+
 # Help
 help:
 	@echo "Makefile commands for RAG system:"
@@ -69,13 +76,53 @@ help:
 	@echo "  make down               Stop containers"
 	@echo "  make logs               View logs"
 	@echo ""
-	@echo "CLI commands:"
-	@echo "  make cli ARGS=\"command args\"  Execute CLI command"
-	@echo "  make add-files FILES=\"file1.pdf file2.txt\" COLLECTION=\"default\"  Add files to index"
-	@echo "  make query QUERY=\"your query\" COLLECTION=\"default\"  Execute query"
-	@echo "  make list-collections   List collections"
-	@echo "  make create-collection NAME=\"name\"  Create collection"
-	@echo "  make delete-collection NAME=\"name\"  Delete collection"
+	@echo "CLI commands (via Makefile or direct CLI):"
+	@echo "  make add-files FILES=\"file1.pdf file2.txt\" COLLECTION=\"default\""
+	@echo "    # Add files to index (Makefile wrapper for 'add'). If FILES is not set, defaults to all files in data/ folder."
+	@echo "  docker-compose exec cli python /app/cli.py add file1.pdf file2.txt --collection default"
+	@echo "    # Add files to index (direct CLI)"
+	@echo "  make cli ARGS=\"add-text 'Some text' --title 'Doc Title' --collection default\""
+	@echo "    # Add text directly to the system"
+	@echo "  make cli ARGS=\"query QUERY=\"your query\" COLLECTION=\"default\"\""
+	@echo "    # Semantic search"
+	@echo "  make cli ARGS=\"similar 'Text to match' --collection default --limit 5\""
+	@echo "    # Find similar documents"
+	@echo "  make cli ARGS=\"collections --list\""
+	@echo "    # List collections"
+	@echo "  make cli ARGS=\"collections --create new_collection\""
+	@echo "    # Create collection"
+	@echo "  make cli ARGS=\"collections --delete old_collection\""
+	@echo "    # Delete collection"
+	@echo "  make cli ARGS=\"purge-processed file1.pdf file2.txt\""
+	@echo "    # Purge all processed data from vector DB for specific docs (does NOT delete raw files) and update progress.json"
+	@echo "  make cli ARGS=\"purge-processed --collection mycollection\""
+	@echo "    # Purge all processed data for all docs in a collection (does NOT delete raw files) and update progress.json"
+	@echo "  make cli ARGS=\"delete-processed file1.pdf file2.txt\""
+	@echo "    # Delete processed files from disk and update progress.json"
+	@echo "  make cli ARGS=\"delete-processed --collection mycollection\""
+	@echo "    # Delete all processed files in a collection from disk and update progress.json"
+	@echo "  make cli ARGS=\"agent create --name 'AgentName'\""
+	@echo "    # Create a new agent"
+	@echo "  make cli ARGS=\"agent list\""
+	@echo "    # List all agents"
+	@echo "  make cli ARGS=\"agent delete AGENT_ID\""
+	@echo "    # Delete an agent"
+	@echo "  make cli ARGS=\"agent info AGENT_ID\""
+	@echo "    # Get agent information"
+	@echo "  make cli ARGS=\"agent actions AGENT_ID\""
+	@echo "    # Get agent action history"
+	@echo "  make cli ARGS=\"agent run AGENT_ID --action some_action\""
+	@echo "    # Execute an action with an agent"
+	@echo "  make cli ARGS=\"agent query AGENT_ID 'your query'\""
+	@echo "    # Process a query using an agent"
+	@echo "  make cli ARGS=\"agent evaluate AGENT_ID --query 'Q' --response 'R'\""
+	@echo "    # Evaluate response quality"
+	@echo "  make cli ARGS=\"agent improve AGENT_ID EVAL_ID\""
+	@echo "    # Improve response based on evaluation"
+	@echo "  make cli ARGS=\"agent plan AGENT_ID 'task'\""
+	@echo "    # Create a plan for a task"
+	@echo "  make cli ARGS=\"agent execute-plan AGENT_ID PLAN_ID\""
+	@echo "    # Execute a plan"
 	@echo ""
 	@echo "Development commands:"
 	@echo "  make shell              Start bash in API container"

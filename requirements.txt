@@ -45,3 +45,5 @@ aiohttp>=3.8.5
 asyncio>=3.4.3
 
 # Development and Testing dependencies moved to requirements-dev.txt
+
+tabulate

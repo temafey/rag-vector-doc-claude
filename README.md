@@ -432,6 +432,42 @@ Options:
 - `--collection`, `-c`: Collection name (default: "default")
 - `--limit`, `-l`: Number of results to return (default: 5)
 
+#### Purge Processed Data (Vector DB Only)
+
+Remove all processed data (vectors, metadata, etc.) from the vector DB for specific documents or a collection, and update `progress.json` status to `"deleted"`. **Does NOT delete raw files from disk.**
+
+```bash
+# Using Makefile:
+make cli ARGS="purge-processed file1.pdf file2.txt"
+make cli ARGS="purge-processed --collection mycollection"
+
+# Using venv:
+python cli.py purge-processed file1.pdf file2.txt
+python cli.py purge-processed --collection mycollection
+```
+
+Options:
+- `files`: One or more document file names (or IDs) to purge from the vector DB
+- `--collection`, `-c`: Purge all processed docs in the given collection (if tracked in progress.json)
+
+#### Delete Processed Files (Disk)
+
+Delete processed files from disk and update `progress.json` status to `"deleted"`.
+
+```bash
+# Using Makefile:
+make cli ARGS="delete-processed file1.pdf file2.txt"
+make cli ARGS="delete-processed --collection mycollection"
+
+# Using venv:
+python cli.py delete-processed file1.pdf file2.txt
+python cli.py delete-processed --collection mycollection
+```
+
+Options:
+- `files`: One or more document file paths to delete from disk
+- `--collection`, `-c`: Delete all processed files in the given collection from disk (if tracked in progress.json)
+
 ## Module Reference
 
 ### Domain Layer

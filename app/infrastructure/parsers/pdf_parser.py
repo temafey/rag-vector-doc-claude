@@ -450,3 +450,10 @@ class PdfParser(DocumentParser):
             logger.error(f"Error extracting sections: {str(e)}")
             # Fall back to regular page parsing
             return self.parse(file_path)
+    
+    def count_units(self, file_path: str) -> int:
+        """Return number of pages in the PDF."""
+        pdf_document = fitz.open(file_path)
+        n = pdf_document.page_count
+        pdf_document.close()
+        return n

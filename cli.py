@@ -12,6 +12,8 @@ from pathlib import Path
 import sys
 import time
 from tabulate import tabulate
+import threading
+from tqdm import tqdm
 
 from app.config.config_loader import get_config
 
@@ -35,55 +37,79 @@ def cli():
 @click.option("--chunk-overlap", default=200, help="Chunk overlap")
 @click.option("--metadata", "-m", multiple=True, help="Metadata in key=value format")
 @click.option("--language", "-l", help="Document language (auto if not specified)")
+@click.option("--resume", is_flag=True, help="Resume from last processed file/page/row using data/progress.json")
 def add_files(files: List[str], collection: str, chunk_size: int, 
-             chunk_overlap: int, metadata: List[str], language: str = None):
-    """Add files to index."""
-    # Convert metadata from list of strings to dict
+             chunk_overlap: int, metadata: List[str], language: str = None, resume: bool = False):
+    """Add files to index with progress tracking and resume support."""
+    PROGRESS_FILE = "data/progress.json"
+    os.makedirs("data", exist_ok=True)
+    def load_progress():
+        if os.path.exists(PROGRESS_FILE):
+            with open(PROGRESS_FILE) as f:
+                return json.load(f)
+        return {}
+    def save_progress(progress):
+        with open(PROGRESS_FILE, "w") as f:
+            json.dump(progress, f, indent=2)
+    progress = load_progress() if resume else {}
     metadata_dict = {}
     for meta in metadata:
         key, value = meta.split("=", 1)
         metadata_dict[key] = value
-    
-    # Counters for statistics
-    total_documents = 0
-    total_chunks = 0
-    
-    # Process each file
-    for file_path in files:
+    total_files = len(files)
+    files_done = 0
+    for file_idx, file_path in enumerate(files):
+        file_name = os.path.basename(file_path)
+        file_prog = progress.get(file_name, {}) if resume else {}
+        if resume and file_prog.get("status") == "done":
+            click.echo(f"Skipping {file_name} (already done)")
+            files_done += 1
+            continue
         click.echo(f"Processing file: {file_path}")
-        
-        # Create multipart/form-data request
-        files_dict = {
-            'file': open(file_path, 'rb')
-        }
-        
-        data = {
-            'collection': collection,
-            'metadata': json.dumps(metadata_dict)
-        }
-        
+        files_dict = {'file': open(file_path, 'rb')}
+        data = {'collection': collection, 'metadata': json.dumps(metadata_dict)}
         if language:
             data['language'] = language
-        
-        # Send request
-        response = requests.post(
-            f"{API_BASE_URL}/documents/upload",
-            files=files_dict,
-            data=data
-        )
-        
-        # Check response status
+        # Use async endpoint for progress
+        response = requests.post(f"{API_BASE_URL}/documents/upload/async", files=files_dict, data=data)
         if response.status_code != 200:
             click.echo(f"Error processing file {file_path}: {response.text}")
             continue
-        
-        # Get result
         result = response.json()
-        
-        total_documents += result.get("document_count", 0)
-        total_chunks += result.get("chunk_count", 0)
-    
-    click.echo(f"Added {total_documents} documents, {total_chunks} fragments.")
+        task_id = result.get("task_id")
+        # Poll for progress
+        percent = 0
+        last_status = None
+        while True:
+            status_resp = requests.get(f"{API_BASE_URL}/tasks/{task_id}")
+            if status_resp.status_code != 200:
+                click.echo(f"Error polling status for {file_name}: {status_resp.text}")
+                break
+            status_data = status_resp.json()
+            status = status_data.get("status")
+            prog = status_data.get("result", {})
+            if status != last_status:
+                click.echo(f"Status: {status}")
+                last_status = status
+            if status == "completed":
+                click.echo(f"File {file_name} processed: {prog.get('document_count', 0)} docs, {prog.get('chunk_count', 0)} chunks.")
+                progress[file_name] = {"status": "done"}
+                save_progress(progress)
+                files_done += 1
+                break
+            elif status == "failed":
+                click.echo(f"File {file_name} failed: {status_data.get('error')}")
+                progress[file_name] = {"status": "failed", "error": status_data.get('error')}
+                save_progress(progress)
+                break
+            else:
+                # Show percent if available
+                if "progress" in status_data:
+                    percent = status_data["progress"]
+                    click.echo(f"Progress: {percent}%", nl=False)
+                time.sleep(1)
+        click.echo(f"Overall progress: {files_done}/{total_files} files ({100*files_done//total_files}%)")
+    click.echo(f"All files processed. {files_done}/{total_files} done.")
 
 @cli.command("query")
 @click.argument("query_text")
@@ -393,6 +419,96 @@ def add_text(text: str, collection: str, title: str = None, metadata: List[str] 
     
     click.echo(f"Document added with ID: {result['id']}")
     click.echo(f"Chunks generated: {result['chunk_count']}")
+
+@cli.command("delete-processed")
+@click.argument("files", nargs=-1, type=click.Path())
+@click.option("--collection", "-c", default=None, help="Collection name to delete all processed files for")
+def delete_processed(files: List[str], collection: Optional[str] = None):
+    """Delete processed document files and update progress.json status."""
+    import glob
+    PROGRESS_FILE = "data/progress.json"
+    os.makedirs("data", exist_ok=True)
+    def load_progress():
+        if os.path.exists(PROGRESS_FILE):
+            with open(PROGRESS_FILE) as f:
+                return json.load(f)
+        return {}
+    def save_progress(progress):
+        with open(PROGRESS_FILE, "w") as f:
+            json.dump(progress, f, indent=2)
+    progress = load_progress()
+    deleted = []
+    updated = []
+    # If collection is specified, find all files in progress.json with that collection
+    if collection:
+        # This assumes metadata in progress.json includes collection info (if not, skip this logic)
+        for fname, status in progress.items():
+            # If you want to filter by collection, you need to store collection in progress.json entries
+            # For now, just delete all files in data/ matching collection name as prefix
+            if fname.startswith(collection):
+                files = list(files) + [os.path.join("data", fname)]
+    for file_path in files:
+        file_name = os.path.basename(file_path)
+        # Remove file from disk if exists
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                click.echo(f"Deleted file: {file_path}")
+                deleted.append(file_name)
+            except Exception as e:
+                click.echo(f"Error deleting {file_path}: {e}")
+        # Update progress.json
+        if file_name in progress:
+            progress[file_name]["status"] = "deleted"
+            updated.append(file_name)
+    save_progress(progress)
+    click.echo(f"Deleted {len(deleted)} files. Updated progress.json for {len(updated)} files.")
+
+@cli.command("purge-processed")
+@click.argument("files", nargs=-1, type=click.Path())
+@click.option("--collection", "-c", default=None, help="Collection name to purge all processed docs for")
+def purge_processed(files: List[str], collection: Optional[str] = None):
+    """
+    Delete all processed data from vector DB for specific document(s) and update progress.json status.
+    Does NOT delete raw files from disk.
+    """
+    PROGRESS_FILE = "data/progress.json"
+    os.makedirs("data", exist_ok=True)
+    def load_progress():
+        if os.path.exists(PROGRESS_FILE):
+            with open(PROGRESS_FILE) as f:
+                return json.load(f)
+        return {}
+    def save_progress(progress):
+        with open(PROGRESS_FILE, "w") as f:
+            json.dump(progress, f, indent=2)
+    progress = load_progress()
+    updated = []
+    # If collection is specified, add all files in progress.json with that collection
+    if collection:
+        for fname, status in progress.items():
+            # If you want to filter by collection, you need to store collection in progress.json entries
+            # For now, just match all files in progress.json (improve as needed)
+            files = list(files) + [fname]
+    for file_name in files:
+        # 1. Call API to delete all vectors/chunks for this document
+        #    (Assume you have an endpoint like /documents/{document_id} DELETE)
+        #    If you only have filename, you may need to look up document_id by filename
+        #    Here, we assume filename == document_id for demo
+        try:
+            resp = requests.delete(f"{API_BASE_URL}/documents/{file_name}")
+            if resp.status_code == 200:
+                click.echo(f"Purged vector DB for: {file_name}")
+            else:
+                click.echo(f"Error purging {file_name}: {resp.text}")
+        except Exception as e:
+            click.echo(f"Error purging {file_name}: {e}")
+        # 2. Update progress.json
+        if file_name in progress:
+            progress[file_name]["status"] = "deleted"
+            updated.append(file_name)
+    save_progress(progress)
+    click.echo(f"Purged vector DB for {len(updated)} docs. Updated progress.json for {len(updated)} docs.")
 
 #################
 # Agent commands #

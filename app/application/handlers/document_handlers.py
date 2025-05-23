@@ -165,39 +165,28 @@ class AddFilesCommandHandler(CommandHandler[AddFilesCommand, AddFilesResult]):
         self.parser_factory = parser_factory
     
     def handle(self, command: AddFilesCommand) -> AddFilesResult:
+        import builtins
+        progress_callback = getattr(builtins, '_rag_progress_callback', None)
         total_documents = 0
         total_chunks = 0
-        
-        # Process each file
         for file_path in command.files:
-            # Get appropriate parser for file
             try:
                 parser = self.parser_factory.get_parser(file_path)
             except ValueError as e:
-                # Log error and skip file
                 print(f"Error: {str(e)}")
                 continue
-            
-            # Parse file into list of documents
             parsed_documents = parser.parse(file_path)
-            
-            # Process each document
-            for parsed_doc in parsed_documents:
+            total_units = len(parsed_documents)
+            for idx, parsed_doc in enumerate(parsed_documents):
                 doc_id = str(uuid.uuid4())
-                
-                # Determine metadata
                 base_filename = os.path.basename(file_path)
                 metadata = {
                     "source_file": base_filename,
-                    "file_type": os.path.splitext(base_filename)[1][1:],  # File type without dot
+                    "file_type": os.path.splitext(base_filename)[1][1:],
                     **command.metadata
                 }
-                
-                # If parsed document has metadata, add it
                 if "metadata" in parsed_doc:
                     metadata.update(parsed_doc["metadata"])
-                
-                # Create command to add document
                 add_doc_command = AddDocumentCommand(
                     id=doc_id,
                     content=parsed_doc["content"],
@@ -207,14 +196,12 @@ class AddFilesCommandHandler(CommandHandler[AddFilesCommand, AddFilesResult]):
                     chunk_overlap=command.chunk_overlap,
                     language=command.language
                 )
-                
-                # Execute command through same handler
                 from app.infrastructure.command_bus import command_bus
                 result = command_bus.dispatch(add_doc_command)
-                
                 total_documents += 1
                 total_chunks += result.chunk_count
-        
+                if progress_callback:
+                    progress_callback(idx + 1, total_units)
         return AddFilesResult(
             total_documents=total_documents,
             total_chunks=total_chunks
