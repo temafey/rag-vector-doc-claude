@@ -10,9 +10,8 @@ from app.domain.events.agent_events import (
     PlanStepCompletedEvent,
     PlanCompletedEvent
 )
-from langchain.llms import OpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
 import json
 
 class PlanningService:
@@ -27,8 +26,8 @@ class PlanningService:
         else:
             from app.config.config_loader import get_config
             config = get_config()
-            self.llm = OpenAI(
-                temperature=0.2,  # Lower temperature for more deterministic planning
+            self.llm = ChatOpenAI(
+                openai_api_key=config["langchain"].get("api_key"),
                 model_name=config["langchain"].get("llm_model", "gpt-3.5-turbo")
             )
         
@@ -69,7 +68,7 @@ Respond in the following JSON format:
 """
         )
         
-        self.planning_chain = LLMChain(llm=self.llm, prompt=self.planning_template)
+        self.planning_chain = self.planning_template | self.llm
     
     def create_plan(self, agent: Agent, task: str, constraints: List[str] = None) -> Plan:
         """Create a plan for completing a task."""

@@ -2,7 +2,7 @@
 Service for generating multilingual embeddings.
 """
 from typing import List
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from app.config.config_loader import get_config
 
 class MultilingualEmbeddingGenerator:

@@ -1,10 +1,11 @@
-.PHONY: build up down logs shell test lint format help
+.PHONY: build up down logs shell test lint format help clean-containers
 
 # Variables
 DOCKER_COMPOSE = docker-compose
 API_SERVICE = api
 CLI_SERVICE = cli
 QDRANT_SERVICE = qdrant
+PYTHON_IN_VENV = /app/.venv/bin/python
 
 # Build and run commands
 build:
@@ -21,28 +22,28 @@ logs:
 
 # CLI commands
 cli:
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py $(ARGS)
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) $(PYTHON_IN_VENV) /app/cli.py $(ARGS)
 
 # Add files to index
 add-files:
 	@if [ -z "$(FILES)" ]; then \
 	  FILES="data/*"; \
 	fi; \
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py add $$FILES --collection $(COLLECTION)
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) $(PYTHON_IN_VENV) /app/cli.py add $$FILES --collection $(COLLECTION)
 
 # Execute query
 query:
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py query "$(QUERY)" --collection $(COLLECTION)
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) $(PYTHON_IN_VENV) /app/cli.py query "$(QUERY)" --collection $(COLLECTION)
 
 # Collection management
 list-collections:
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py collections --list
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) $(PYTHON_IN_VENV) /app/cli.py collections --list
 
 create-collection:
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py collections --create $(NAME)
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) $(PYTHON_IN_VENV) /app/cli.py collections --create $(NAME)
 
 delete-collection:
-	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) python /app/cli.py collections --delete $(NAME)
+	$(DOCKER_COMPOSE) exec $(CLI_SERVICE) $(PYTHON_IN_VENV) /app/cli.py collections --delete $(NAME)
 
 # Development commands
 shell:
@@ -59,12 +60,15 @@ format:
 	$(DOCKER_COMPOSE) exec $(API_SERVICE) isort app
 
 # Virtual environment
-venv:
+setup-venv:
 	./scripts/setup_venv.sh
+
+activate_venv:
+	./scripts/activate_venv.sh
 
 # Run auto-update Taskmaster status script
 update-tasks:
-	$(DOCKER_COMPOSE) run --rm --entrypoint "" cli python scripts/auto_update_taskmaster_status.py
+	$(DOCKER_COMPOSE) run --rm --entrypoint "" cli $(PYTHON_IN_VENV) scripts/auto_update_taskmaster_status.py
 
 # Help
 help:
@@ -79,7 +83,7 @@ help:
 	@echo "CLI commands (via Makefile or direct CLI):"
 	@echo "  make add-files FILES=\"file1.pdf file2.txt\" COLLECTION=\"default\""
 	@echo "    # Add files to index (Makefile wrapper for 'add'). If FILES is not set, defaults to all files in data/ folder."
-	@echo "  docker-compose exec cli python /app/cli.py add file1.pdf file2.txt --collection default"
+	@echo "  docker-compose exec cli $(PYTHON_IN_VENV) /app/cli.py add file1.pdf file2.txt --collection default"
 	@echo "    # Add files to index (direct CLI)"
 	@echo "  make cli ARGS=\"add-text 'Some text' --title 'Doc Title' --collection default\""
 	@echo "    # Add text directly to the system"
@@ -130,3 +134,9 @@ help:
 	@echo "  make lint               Run flake8"
 	@echo "  make format             Format code with black and isort"
 	@echo "  make venv               Setup virtual environment"
+	@echo "  make setup-venv         Setup virtual environment and install requirements in CLI container"
+	@echo "  make clean-containers   Remove all containers, networks, and the venv Docker volume"
+
+clean-containers:
+	$(DOCKER_COMPOSE) down --remove-orphans
+	$(DOCKER_COMPOSE) volume rm $(DOCKER_COMPOSE)_venv || true

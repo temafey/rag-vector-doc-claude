@@ -2,8 +2,7 @@
 Service for generating responses based on retrieved context.
 """
 from typing import List, Dict, Any, Optional
-from langchain.llms import OpenAI
-from langchain.chains import LLMChain
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from app.config.config_loader import get_config
 
@@ -18,7 +17,7 @@ class ResponseGenerator:
             api_key: OpenAI API key (if not specified, uses environment variable OPENAI_API_KEY)
         """
         config = get_config()
-        self.llm = OpenAI(
+        self.llm = ChatOpenAI(
             temperature=config["langchain"].get("temperature", 0),
             openai_api_key=api_key,
             model_name=config["langchain"].get("llm_model", "gpt-3.5-turbo")
@@ -53,7 +52,7 @@ Answer:"""
         # LLM chains for each language
         self.chains = {}
         for lang, template in self.prompt_templates.items():
-            self.chains[lang] = LLMChain(llm=self.llm, prompt=template)
+            self.chains[lang] = template | self.llm
     
     def generate(self, query: str, context: List[str], language: str = "en") -> str:
         """
@@ -92,4 +91,4 @@ Answer:"""
             template=template
         )
         
-        self.chains[language_code] = LLMChain(llm=self.llm, prompt=self.prompt_templates[language_code])
+        self.chains[language_code] = self.prompt_templates[language_code] | self.llm

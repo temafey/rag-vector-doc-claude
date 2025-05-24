@@ -2,7 +2,7 @@
 Service for generating embeddings using OpenAI.
 """
 from typing import List
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from app.config.config_loader import get_config
 
 class EmbeddingGenerator:

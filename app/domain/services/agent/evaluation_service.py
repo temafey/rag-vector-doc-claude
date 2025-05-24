@@ -11,9 +11,8 @@ from app.domain.events.agent_events import (
     ResponseEvaluatedEvent,
     ResponseImprovedEvent
 )
-from langchain.llms import OpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
 import json
 import uuid
 
@@ -27,8 +26,8 @@ class EvaluationService:
         else:
             from app.config.config_loader import get_config
             config = get_config()
-            self.llm = OpenAI(
-                temperature=0.1,  # Low temperature for more deterministic evaluation
+            self.llm = ChatOpenAI(
+                openai_api_key=config["langchain"].get("api_key"),
                 model_name=config["langchain"].get("llm_model", "gpt-3.5-turbo")
             )
         
@@ -182,9 +181,9 @@ Then, provide an improved version of the response that addresses these suggestio
         # Create LLM chains
         self.evaluation_chains = {}
         for criterion, template in self.evaluation_templates.items():
-            self.evaluation_chains[criterion] = LLMChain(llm=self.llm, prompt=template)
+            self.evaluation_chains[criterion] = template | self.llm
         
-        self.improvement_chain = LLMChain(llm=self.llm, prompt=self.improvement_template)
+        self.improvement_chain = self.improvement_template | self.llm
         
         # Default quality thresholds and weights
         self.quality_thresholds = {

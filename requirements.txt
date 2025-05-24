@@ -15,6 +15,9 @@ transformers>=4.33.2
 sentence-transformers>=2.2.2
 torch>=2.0.1
 accelerate>=0.20.3
+langchain-community
+langchain-openai
+langchain-huggingface
 
 # Document Processing
 pypdf>=3.15.1
@@ -25,6 +28,7 @@ pandas>=2.1.0
 openpyxl>=3.1.2
 python-docx>=0.8.11
 pillow>=10.0.0
+PyPDF2
 
 # Language Processing
 langdetect>=1.0.9

@@ -36,3 +36,15 @@ huggingface_hub[hf_xet]>=0.21.4
 
 # Added tabulate
 tabulate
+
+# Added langchain-community
+langchain-community
+
+# Added PyPDF2
+PyPDF2
+
+# Added langchain-openai
+langchain-openai
+
+# Added langchain-huggingface
+langchain-huggingface
