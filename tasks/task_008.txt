@@ -1,0 +1,27 @@
+# Task ID: 8
+# Title: Extend CLI Interface
+# Status: done
+# Dependencies: 6
+# Priority: low
+# Description: Extend the CLI interface to support agent-based RAG functionality.
+# Details:
+Update the CLI interface to support agent functionality:
+
+1. Add new commands for agent-based queries:
+```python
+@click.command()
+@click.option('--query', '-q', required=True, help='The query to process')
+@click.option('--agent/--no-agent', default=True, help='Use agent-based approach')
+def process_query(query, agent):
+    """Process a query using RAG system."""
+    result = client.process_query(query, use_agent=agent)
+    click.echo(result)
+```
+
+2. Add commands for viewing agent conversation history and action logs
+3. Add commands for configuring agent behavior
+4. Update help documentation
+5. Ensure backward compatibility with existing commands
+
+# Test Strategy:
+Create automated tests for CLI commands using subprocess to invoke the CLI. Test with various command-line arguments and options. Verify output formatting and error handling. Test backward compatibility with existing command usage patterns.

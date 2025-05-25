@@ -8,9 +8,7 @@ from app.application.handlers.document_handlers import (
     CreateCollectionCommandHandler,
     DeleteCollectionCommandHandler,
     UpdateDocumentLanguageCommandHandler,
-    ReindexDocumentCommandHandler
-)
-from app.application.handlers.query_handlers import (
+    ReindexDocumentCommandHandler,
     SearchQueryHandler,
     GetDocumentByIdQueryHandler,
     ListCollectionsQueryHandler,

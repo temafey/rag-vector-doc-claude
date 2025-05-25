@@ -11,14 +11,14 @@ from app.application.commands.document_commands import (
     ReindexDocumentCommand
 )
 from app.application.commands.agent_commands import (
-    CreateAgentCommand, CreateAgentResult,
+    CreateAgentCommand,
     DeleteAgentCommand,
-    ExecuteAgentActionCommand, ExecuteAgentActionResult,
-    ProcessAgentQueryCommand, ProcessAgentQueryResult,
-    CreatePlanCommand, CreatePlanResult,
-    ExecutePlanCommand, ExecutePlanResult,
-    EvaluateResponseCommand, EvaluateResponseResult,
-    ImproveResponseCommand, ImproveResponseResult
+    ExecuteAgentActionCommand,
+    ProcessAgentQueryCommand,
+    CreatePlanCommand,
+    ExecutePlanCommand,
+    EvaluateResponseCommand,
+    ImproveResponseCommand
 )
 
 __all__ = [
@@ -33,18 +33,11 @@ __all__ = [
     
     # Agent commands
     'CreateAgentCommand',
-    'CreateAgentResult',
     'DeleteAgentCommand',
     'ExecuteAgentActionCommand',
-    'ExecuteAgentActionResult',
     'ProcessAgentQueryCommand',
-    'ProcessAgentQueryResult',
     'CreatePlanCommand',
-    'CreatePlanResult',
     'ExecutePlanCommand',
-    'ExecutePlanResult',
     'EvaluateResponseCommand',
-    'EvaluateResponseResult',
-    'ImproveResponseCommand',
-    'ImproveResponseResult'
+    'ImproveResponseCommand'
 ]

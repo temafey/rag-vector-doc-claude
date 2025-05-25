@@ -1,0 +1,37 @@
+# Task ID: 15
+# Title: Create Documentation
+# Status: done
+# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+# Priority: medium
+# Description: Create comprehensive documentation for the agent-based RAG system.
+# Details:
+Create comprehensive documentation:
+
+1. Architecture documentation
+2. API documentation
+3. User guides for different user roles
+4. Developer guides for extending the system
+5. Deployment and operations guide
+6. Configuration reference
+7. Troubleshooting guide
+8. Code documentation:
+```python
+def process_query(query, use_agent=True):
+    """Process a user query using RAG or agent-based approach.
+    
+    Args:
+        query (str): The user query to process
+        use_agent (bool): Whether to use agent-based approach
+        
+    Returns:
+        dict: Response containing answer and metadata
+        
+    Raises:
+        QueryProcessingError: If query processing fails
+    """
+```
+
+9. Create diagrams for key workflows and architecture
+
+# Test Strategy:
+Review documentation for accuracy and completeness. Verify API documentation matches implementation. Test user guides with actual users. Verify developer guides with developers not familiar with the system.

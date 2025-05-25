@@ -1,0 +1,26 @@
+# Task ID: 7
+# Title: Extend API for Agent Functionality
+# Status: done
+# Dependencies: 6
+# Priority: medium
+# Description: Extend the existing API with new endpoints to support agent-based RAG functionality.
+# Details:
+Extend the API with new endpoints while maintaining existing ones:
+
+1. Add new endpoints for agent-specific functionality:
+   - POST /api/agent/query - Process query using agent approach
+   - GET /api/agent/conversation/{id} - Get conversation history
+   - POST /api/agent/feedback - Submit feedback on agent responses
+
+2. Update existing endpoints to optionally use agent approach with a query parameter:
+   - POST /api/rag/query?agent=true
+
+3. Add endpoints for monitoring and debugging agent actions:
+   - GET /api/agent/actions/{conversation_id} - Get action history
+   - GET /api/agent/evaluation/{response_id} - Get evaluation details
+
+4. Implement request/response DTOs for new endpoints
+5. Update API documentation (Swagger/OpenAPI)
+
+# Test Strategy:
+Create API tests for each new endpoint. Test with various query parameters and payload combinations. Verify backward compatibility with existing clients. Test error responses and edge cases. Validate API documentation accuracy.

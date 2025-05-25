@@ -16,6 +16,7 @@ from qdrant_client.http import models
 from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter
 from qdrant_client.models import FieldCondition, MatchValue, Range, HasIdCondition
+from app.infrastructure.logging import get_logger, log_execution_time, log_errors
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -181,6 +182,23 @@ class VectorRepository:
             timeout: Timeout for Qdrant operations
             max_workers: Maximum number of worker threads
         """
+        # Initialize structured logger
+        self.logger = get_logger("vector_repository")
+        
+        # Log initialization
+        self.logger.log_business_event(
+            event="vector_repository_initialized",
+            entity_type="vector_repository",
+            entity_id=f"{host}:{port}",
+            host=host,
+            port=port,
+            cache_size=cache_size,
+            cache_ttl=cache_ttl,
+            max_clients=max_clients,
+            timeout=timeout,
+            max_workers=max_workers
+        )
+        
         # Initialize client pool
         self.client_pool = QdrantClientPool(
             host=host, 
@@ -201,6 +219,13 @@ class VectorRepository:
         # Track known collections to avoid repeated checks
         self.known_collections: Set[str] = set()
         self.known_collections_lock = Lock()
+        
+        self.logger.info("Vector repository initialized successfully", context={
+            "host": host,
+            "port": port,
+            "cache_size": cache_size,
+            "max_clients": max_clients
+        })
     
     def _is_collection_known(self, name: str) -> bool:
         """Check if collection is known."""
@@ -406,10 +431,12 @@ class VectorRepository:
         # Clear cache entries related to this vector
         self.cache.clear()  # TODO: implement selective clearing
     
+    @log_execution_time(operation_name="vector_search")
+    @log_errors(reraise=True)
     def search(self, collection: str, query_vector: List[float], limit: int = 5, 
               filter_condition: Optional[Dict[str, Any]] = None) -> List[SearchResult]:
         """
-        Search for nearest vectors with caching.
+        Search for nearest vectors with caching and comprehensive logging.
         
         Args:
             collection: Collection name
@@ -420,91 +447,200 @@ class VectorRepository:
         Returns:
             List of search results
         """
-        # Check if collection exists in our cache
-        if not self._is_collection_known(collection):
-            # Check if collection exists in Qdrant
-            collections = self.client.get_collections().collections
-            collection_names = [collection.name for collection in collections]
-            
-            if collection not in collection_names:
-                return []  # Collection doesn't exist
-            
-            self._add_known_collection(collection)
+        search_id = f"search_{collection}_{int(time.time() * 1000)}"
+        start_time = time.time()
         
-        # Check cache
-        cached_results = self.cache.get(collection, query_vector, limit, filter_condition)
-        if cached_results is not None:
-            return cached_results
-        
-        # Get client from pool
-        client = self.client_pool.get_client()
+        # Log search operation start
+        self.logger.log_business_event(
+            event="vector_search_started",
+            entity_type="vector_search",
+            entity_id=search_id,
+            collection=collection,
+            vector_dimensions=len(query_vector),
+            limit=limit,
+            has_filter=filter_condition is not None,
+            filter_keys=list(filter_condition.keys()) if filter_condition else []
+        )
         
         try:
-            # Create filter if provided
-            search_filter = None
-            if filter_condition:
-                must_conditions = []
+            # Check if collection exists in our cache
+            if not self._is_collection_known(collection):
+                # Check if collection exists in Qdrant
+                collections = self.client.get_collections().collections
+                collection_names = [collection.name for collection in collections]
                 
-                for key, value in filter_condition.items():
-                    if isinstance(value, (dict, Dict)):
-                        # Handle range conditions
-                        if 'gt' in value or 'gte' in value or 'lt' in value or 'lte' in value:
-                            range_condition = Range(
-                                key=key,
-                                gt=value.get('gt'),
-                                gte=value.get('gte'),
-                                lt=value.get('lt'),
-                                lte=value.get('lte')
-                            )
-                            must_conditions.append(range_condition)
-                    else:
-                        # Handle exact match
-                        match_condition = FieldCondition(
-                            key=key,
-                            match=MatchValue(value=value)
-                        )
-                        must_conditions.append(match_condition)
+                if collection not in collection_names:
+                    self.logger.warning("Collection not found", context={
+                        "search_id": search_id,
+                        "collection": collection,
+                        "available_collections": collection_names
+                    })
+                    return []  # Collection doesn't exist
                 
-                search_filter = Filter(
-                    must=must_conditions
+                self._add_known_collection(collection)
+            
+            # Check cache
+            cache_start = time.time()
+            cached_results = self.cache.get(collection, query_vector, limit, filter_condition)
+            cache_duration = time.time() - cache_start
+            
+            if cached_results is not None:
+                cache_stats = self.cache.get_stats()
+                self.logger.info("Cache hit for vector search", context={
+                    "search_id": search_id,
+                    "collection": collection,
+                    "cached_results": len(cached_results),
+                    "cache_lookup_ms": cache_duration * 1000,
+                    "cache_hit_ratio": cache_stats["hit_ratio"]
+                })
+                
+                self.logger.log_performance(
+                    operation="vector_search_cache_hit",
+                    duration=time.time() - start_time,
+                    results_count=len(cached_results),
+                    cache_lookup_ms=cache_duration * 1000
                 )
+                
+                return cached_results
             
-            # Set higher ef parameter for more accurate search
-            search_params = models.SearchParams(
-                hnsw_ef=128,
-                exact=False
-            )
+            self.logger.debug("Cache miss, performing vector search", context={
+                "search_id": search_id,
+                "collection": collection,
+                "cache_lookup_ms": cache_duration * 1000
+            })
             
-            # Perform search
-            search_results = client.search(
-                collection_name=collection,
-                query_vector=query_vector,
-                limit=limit,
-                query_filter=search_filter,
-                search_params=search_params
-            )
+            # Get client from pool
+            client = self.client_pool.get_client()
             
-            # Convert results
-            results = []
-            for result in search_results:
-                results.append(SearchResult(
-                    id=result.id,
-                    score=result.score,
-                    metadata=result.payload
-                ))
-            
-            # Cache results
-            self.cache.set(collection, query_vector, limit, filter_condition, results)
-            
-            return results
-            
+            try:
+                # Create filter if provided
+                filter_creation_start = time.time()
+                search_filter = None
+                if filter_condition:
+                    must_conditions = []
+                    
+                    for key, value in filter_condition.items():
+                        if isinstance(value, (dict, Dict)):
+                            # Handle range conditions
+                            if 'gt' in value or 'gte' in value or 'lt' in value or 'lte' in value:
+                                range_condition = Range(
+                                    key=key,
+                                    gt=value.get('gt'),
+                                    gte=value.get('gte'),
+                                    lt=value.get('lt'),
+                                    lte=value.get('lte')
+                                )
+                                must_conditions.append(range_condition)
+                        else:
+                            # Handle exact match
+                            match_condition = FieldCondition(
+                                key=key,
+                                match=MatchValue(value=value)
+                            )
+                            must_conditions.append(match_condition)
+                    
+                    search_filter = Filter(
+                        must=must_conditions
+                    )
+                
+                filter_creation_duration = time.time() - filter_creation_start
+                
+                # Set higher ef parameter for more accurate search
+                search_params = models.SearchParams(
+                    hnsw_ef=128,
+                    exact=False
+                )
+                
+                # Perform search
+                qdrant_search_start = time.time()
+                search_results = client.search(
+                    collection_name=collection,
+                    query_vector=query_vector,
+                    limit=limit,
+                    query_filter=search_filter,
+                    search_params=search_params
+                )
+                qdrant_search_duration = time.time() - qdrant_search_start
+                
+                self.logger.info("Qdrant search completed", context={
+                    "search_id": search_id,
+                    "collection": collection,
+                    "results_found": len(search_results),
+                    "qdrant_search_ms": qdrant_search_duration * 1000,
+                    "filter_creation_ms": filter_creation_duration * 1000
+                })
+                
+                # Convert results
+                result_conversion_start = time.time()
+                results = []
+                for result in search_results:
+                    results.append(SearchResult(
+                        id=result.id,
+                        score=result.score,
+                        metadata=result.payload
+                    ))
+                result_conversion_duration = time.time() - result_conversion_start
+                
+                # Cache results
+                cache_store_start = time.time()
+                self.cache.set(collection, query_vector, limit, filter_condition, results)
+                cache_store_duration = time.time() - cache_store_start
+                
+                # Log successful completion
+                total_duration = time.time() - start_time
+                avg_score = sum(r.score for r in results) / len(results) if results else 0
+                
+                self.logger.log_business_event(
+                    event="vector_search_completed",
+                    entity_type="vector_search",
+                    entity_id=search_id,
+                    collection=collection,
+                    results_found=len(results),
+                    avg_relevance_score=avg_score,
+                    total_duration_ms=total_duration * 1000
+                )
+                
+                self.logger.log_performance(
+                    operation="vector_search",
+                    duration=total_duration,
+                    collection=collection,
+                    vector_dimensions=len(query_vector),
+                    limit=limit,
+                    results_found=len(results),
+                    filter_creation_ms=filter_creation_duration * 1000,
+                    qdrant_search_ms=qdrant_search_duration * 1000,
+                    result_conversion_ms=result_conversion_duration * 1000,
+                    cache_store_ms=cache_store_duration * 1000,
+                    avg_relevance_score=avg_score,
+                    has_filter=filter_condition is not None
+                )
+                
+                return results
+                
+            finally:
+                # Return client to pool
+                self.client_pool.release_client(client)
+                
         except Exception as e:
-            logger.error(f"Error searching in collection {collection}: {str(e)}")
-            return []
+            error_duration = time.time() - start_time
+            self.logger.log_business_event(
+                event="vector_search_failed",
+                entity_type="vector_search",
+                entity_id=search_id,
+                collection=collection,
+                error_type=type(e).__name__,
+                error_message=str(e),
+                duration_ms=error_duration * 1000
+            )
             
-        finally:
-            # Return client to pool
-            self.client_pool.release_client(client)
+            self.logger.error(f"Error searching in collection {collection}: {str(e)}", context={
+                "search_id": search_id,
+                "collection": collection,
+                "vector_dimensions": len(query_vector),
+                "limit": limit,
+                "has_filter": filter_condition is not None
+            })
+            return []
     
     async def search_async(self, collection: str, query_vector: List[float], limit: int = 5, 
                          filter_condition: Optional[Dict[str, Any]] = None) -> List[SearchResult]:

@@ -80,3 +80,73 @@ evaluation:
   
   # Maximum improvement attempts
   max_improvement_iterations: 2
+
+# Comprehensive logging configuration
+logging:
+  # Basic logging settings
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Structured logging settings
+  structured:
+    enabled: true
+    include_correlation_id: true
+    format_type: "structured"  # "structured" or "standard"
+  
+  # File logging
+  file:
+    enabled: false
+    path: "./logs/rag-system.log"
+    max_size_mb: 100
+    backup_count: 5
+    rotation: "time"  # "time" or "size"
+  
+  # Component-specific logging levels
+  components:
+    document_processing: "INFO"
+    vector_operations: "INFO"
+    search_queries: "INFO"
+    agent_operations: "INFO"
+    translation: "INFO"
+    embedding_generation: "INFO"
+    text_splitting: "INFO"
+    progress_tracking: "INFO"
+    performance_metrics: "INFO"
+    business_events: "INFO"
+    user_actions: "INFO"
+    system_metrics: "INFO"
+    error_tracking: "ERROR"
+  
+  # Progress tracking settings
+  progress:
+    enabled: true
+    batch_log_interval: 10  # Log every N items
+    percentage_log_interval: 10.0  # Log every N percent
+    time_log_interval: 30  # Log every N seconds
+  
+  # Performance monitoring
+  performance:
+    enabled: true
+    slow_operation_threshold: 5.0  # seconds
+    log_all_operations: false
+    log_slow_operations: true
+  
+  # Correlation tracking
+  correlation:
+    enabled: true
+    header_name: "X-Correlation-ID"
+    auto_generate: true
+  
+  # Error tracking
+  error_tracking:
+    enabled: true
+    include_stack_trace: true
+    max_error_message_length: 1000
+    log_error_context: true
+  
+  # Metrics and monitoring
+  metrics:
+    enabled: true
+    system_metrics_interval: 60  # seconds
+    business_metrics_enabled: true
+    performance_metrics_enabled: true

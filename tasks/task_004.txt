@@ -1,0 +1,66 @@
+# Task ID: 4
+# Title: Implement Self-Assessment Mechanism
+# Status: done
+# Dependencies: 2
+# Priority: high
+# Description: Develop the self-assessment mechanism that evaluates generated responses based on the specified criteria.
+# Details:
+Implement a self-assessment module with the following components:
+
+1. ResponseEvaluator class that assesses responses on multiple criteria:
+```python
+class ResponseEvaluator:
+    def __init__(self, llm_client):
+        self.llm_client = llm_client
+    
+    def evaluate(self, query, response, context):
+        scores = {
+            'relevance': self._evaluate_relevance(query, response),
+            'factual_accuracy': self._evaluate_factual_accuracy(response, context),
+            'completeness': self._evaluate_completeness(query, response),
+            'logical_coherence': self._evaluate_logical_coherence(response),
+            'ethical_compliance': self._evaluate_ethical_compliance(response)
+        }
+        return scores, self._calculate_overall_score(scores)
+```
+
+2. Implement evaluation methods for each criterion using prompt engineering with LLMs
+3. Create a configuration system for setting quality thresholds
+4. Implement a decision mechanism to determine if response improvement is needed
+
+Use LangChain to create specialized prompts for each evaluation criterion.
+
+# Test Strategy:
+Create a test suite with sample queries and responses of varying quality. Validate that the evaluator correctly identifies issues in responses. Test with edge cases like very short responses, off-topic responses, and factually incorrect responses. Compare evaluator results with human judgments for a subset of test cases.
+
+# Subtasks:
+## 1. Implement ResponseEvaluator Class Structure [pending]
+### Dependencies: None
+### Description: Create the basic structure of the ResponseEvaluator class with initialization and the main evaluate method that will call individual criterion evaluation methods.
+### Details:
+Create the ResponseEvaluator class with __init__ method that accepts an LLM client. Implement the evaluate method that calls placeholder methods for each criterion (relevance, factual_accuracy, completeness, logical_coherence, ethical_compliance) and returns a dictionary of scores along with an overall score. Include a _calculate_overall_score method that computes a weighted average of individual scores.
+
+## 2. Implement Individual Criterion Evaluation Methods [pending]
+### Dependencies: None
+### Description: Develop the specific evaluation methods for each assessment criterion using LangChain to create specialized prompts.
+### Details:
+Implement the five evaluation methods (_evaluate_relevance, _evaluate_factual_accuracy, _evaluate_completeness, _evaluate_logical_coherence, _evaluate_ethical_compliance). Each method should use LangChain to create a specialized prompt that asks the LLM to evaluate the response on that specific criterion. Design prompts that clearly explain what each criterion means and how to score it on a scale (e.g., 1-10). Return a normalized score for each criterion.
+
+## 3. Create Configuration System for Quality Thresholds [pending]
+### Dependencies: None
+### Description: Develop a configuration system that allows setting and adjusting quality thresholds for each evaluation criterion.
+### Details:
+Create a QualityConfig class that stores threshold values for each criterion and the overall score. Implement methods to load configurations from a file (JSON/YAML), set default values, and validate configurations. Modify the ResponseEvaluator to accept a QualityConfig object and use its thresholds when evaluating responses. Include the ability to adjust weights for different criteria in the overall score calculation.
+
+## 4. Implement Decision Mechanism for Response Improvement [pending]
+### Dependencies: None
+### Description: Create a system that determines whether a response needs improvement based on evaluation scores and thresholds.
+### Details:
+Add a needs_improvement method to ResponseEvaluator that compares each criterion score and the overall score against the configured thresholds. Return a boolean indicating if improvement is needed, along with a list of criteria that failed to meet thresholds. Implement a get_improvement_suggestions method that generates specific feedback on how to improve the response for each failing criterion.
+
+## 5. Integrate Self-Assessment with Response Generation Pipeline [pending]
+### Dependencies: None
+### Description: Connect the self-assessment mechanism with the response generation system to create a complete feedback loop.
+### Details:
+Create an enhanced response generation pipeline that includes self-assessment. Implement a generate_with_assessment method that generates a response, evaluates it, and if needed, regenerates improved responses until quality thresholds are met or a maximum number of attempts is reached. Add logging of assessment scores and improvement attempts. Include a mechanism to return both the final response and its quality metrics to the caller.
+

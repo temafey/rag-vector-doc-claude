@@ -1,0 +1,69 @@
+# Task ID: 16
+# Title: Task #16: Automate Memory Bank Updates After Major Changes
+# Status: done
+# Dependencies: None
+# Priority: medium
+# Description: Create and implement an automated script or workflow that scans the codebase and updates all memory-bank/*.md files with current project context, architecture, tech stack, and progress after major changes.
+# Details:
+The implementation should focus on creating a robust automation solution that keeps the memory bank files synchronized with the current state of the project. Key implementation details include:
+
+1. Create a script (Python or Bash recommended) that:
+   - Analyzes README files, configuration files, code structure, and recent git commits
+   - Extracts relevant information about project architecture, components, and dependencies
+   - Updates the following memory bank files:
+     - projectbrief.md: Overall project description and goals
+     - productContext.md: Current product state and features
+     - activeContext.md: Active development areas and priorities
+     - systemPatterns.md: Design patterns and architectural decisions
+     - techContext.md: Technology stack and dependencies
+     - progress.md: Development progress, milestones, and roadmap
+
+2. Integration options:
+   - Configure as a Taskmaster subtask that can be triggered manually
+   - Set up as a pre-commit hook for developers (optional but with manual override)
+   - Implement as a CI/CD pipeline step after merges to main branches
+   - Create a scheduled job that runs after a certain number of commits or time period
+
+3. Technical considerations:
+   - Use git diff or similar to identify significant changes
+   - Implement intelligent content merging to avoid overwriting manual edits
+   - Add logging and notification mechanisms for update failures
+   - Include configuration options to customize which files are updated and when
+   - Ensure the script handles edge cases like missing files or conflicting information
+
+4. Documentation:
+   - Document the script's functionality and usage
+   - Provide examples of how to run it manually
+   - Explain how to customize or extend the automation
+
+# Test Strategy:
+The testing strategy should verify that the automation correctly updates memory bank files with accurate information:
+
+1. Functional testing:
+   - Make a significant change to the codebase (e.g., add a new feature, update dependencies)
+   - Run the automation script manually
+   - Verify that relevant memory-bank/*.md files are updated with the correct information
+   - Check that the updates accurately reflect the changes made
+
+2. Integration testing:
+   - Test the automation as part of the intended workflow (pre-commit, CI/CD, or scheduled job)
+   - Verify that it triggers at the appropriate times
+   - Confirm that notifications or logs are generated as expected
+
+3. Edge case testing:
+   - Test with conflicting manual edits to memory bank files
+   - Test with missing or malformed memory bank files
+   - Test with various types of code changes (new features, refactors, dependency updates)
+   - Test with large volumes of changes
+
+4. Validation criteria:
+   - All specified memory bank files are updated
+   - Content is accurate and reflects the current state of the project
+   - Formatting and structure of the files is preserved
+   - No manual edits are lost unless explicitly configured
+   - The process completes within a reasonable time frame
+
+5. User acceptance testing:
+   - Have team members review the updated memory bank files
+   - Confirm the information is useful for onboarding and project understanding
+   - Verify the automation integrates smoothly into the development workflow
